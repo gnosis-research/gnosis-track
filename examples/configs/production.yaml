@@ -1,0 +1,110 @@
+# Production Configuration for Gnosis-Track
+# Optimized for production deployment with high security and reliability
+
+seaweedfs:
+  # Production SeaweedFS cluster
+  s3_endpoint: "${SEAWEED_S3_ENDPOINT}"  # e.g., "seaweed-cluster.internal:8333"
+  access_key: "${SEAWEED_ACCESS_KEY}"
+  secret_key: "${SEAWEED_SECRET_KEY}"
+  use_ssl: true
+  verify_ssl: true
+  auto_start_local: false  # Use managed cluster
+  timeout: 60
+  max_retries: 5
+
+security:
+  # Production security settings
+  encryption_enabled: true
+  encryption_algorithm: "AES256-GCM"
+  jwt_secret: "${JWT_SECRET}"  # Must be set via environment
+  jwt_expiry: "12h"  # Shorter expiry for security
+  tls_enabled: true
+  tls_cert_file: "/etc/ssl/certs/gnosis-track.crt"
+  tls_key_file: "/etc/ssl/private/gnosis-track.key"
+
+logging:
+  # Production logging settings
+  bucket_name: "prod-validator-logs"
+  project_name: "production-validators"
+  compression_enabled: true
+  structured_logging: true
+  log_level: "INFO"  # Less verbose for production
+  retention_days: 365  # Long retention for compliance
+  export_formats: ["json", "csv", "parquet"]
+
+ui:
+  # Production UI settings
+  host: "0.0.0.0"  # Bind to all interfaces
+  port: 443  # HTTPS port
+  debug: false  # Disable debug mode
+  auth_required: true  # Require authentication
+  auto_refresh_interval: 5000  # Slower refresh for performance
+
+monitoring:
+  # Production monitoring
+  enabled: true
+  metrics_endpoint: "/metrics"
+  health_endpoint: "/health"
+  collection_interval: 60  # Standard collection interval
+
+cloud_backup:
+  # Production cloud backup
+  enabled: true
+  provider: "aws"
+  bucket: "${BACKUP_BUCKET_NAME}"  # e.g., "validator-logs-backup-prod"
+  schedule: "0 2 * * *"  # Daily at 2 AM
+  retention_days: 2555  # 7 years for compliance
+  
+  # AWS-specific settings
+  aws:
+    region: "${AWS_REGION}"
+    storage_class: "GLACIER"  # Cost-effective for long-term storage
+    access_key: "${AWS_ACCESS_KEY}"
+    secret_key: "${AWS_SECRET_KEY}"
+    
+  # Backup encryption (separate from storage encryption)
+  backup_encryption: true
+  backup_compression: true
+
+# Production-specific settings
+production:
+  # High availability
+  failover_enabled: true
+  backup_storage_endpoints:
+    - "${BACKUP_SEAWEED_ENDPOINT_1}"
+    - "${BACKUP_SEAWEED_ENDPOINT_2}"
+  
+  # Performance optimization
+  connection_pooling: true
+  max_connections_per_host: 50
+  request_timeout_seconds: 30
+  
+  # Compliance and auditing
+  audit_logging: true
+  audit_log_file: "/var/log/gnosis-track/audit.log"
+  data_retention_policy: "7_years"
+  
+  # Resource limits
+  max_concurrent_uploads: 10
+  max_file_size_mb: 100
+  rate_limiting:
+    requests_per_minute: 1000
+    burst_size: 100
+  
+  # Alerting
+  alerting:
+    enabled: true
+    webhook_url: "${SLACK_WEBHOOK_URL}"
+    email_recipients: "${ALERT_EMAIL_RECIPIENTS}"  # Comma-separated
+    alert_on:
+      - storage_errors
+      - high_error_rate
+      - disk_space_low
+      - backup_failures
+      - security_events
+  
+  # Maintenance
+  automated_maintenance: true
+  maintenance_window: "02:00-04:00"  # UTC
+  auto_cleanup_enabled: true
+  cleanup_schedule: "0 3 * * 0"  # Weekly on Sunday at 3 AM

@@ -1,0 +1,151 @@
+[build-system]
+requires = ["setuptools>=68.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "gnosis-track"
+version = "0.1.0"
+description = "Secure distributed object storage and logging with SeaweedFS"
+readme = "README.md"
+license = {file = "LICENSE"}
+authors = [
+    {name = "Data Universe Team", email = "team@data-universe.ai"}
+]
+maintainers = [
+    {name = "Data Universe Team", email = "team@data-universe.ai"}
+]
+keywords = ["seaweedfs", "object-storage", "logging", "distributed", "s3"]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Intended Audience :: Developers",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: OS Independent",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.8",
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Topic :: System :: Distributed Computing",
+    "Topic :: System :: Logging",
+    "Topic :: System :: Systems Administration",
+]
+requires-python = ">=3.8"
+dependencies = [
+    "boto3>=1.34.0",
+    "botocore>=1.34.0",
+    "requests>=2.31.0",
+    "pyyaml>=6.0.1",
+    "click>=8.1.0",
+    "pydantic>=2.5.0",
+    "cryptography>=41.0.0",
+    "python-jose[cryptography]>=3.3.0",
+    "aiofiles>=23.2.0",
+    "httpx>=0.25.0",
+    "structlog>=23.2.0",
+    "prometheus-client>=0.18.0",
+    "python-dotenv>=1.0.0",
+    "toml>=0.10.2",
+    "pandas>=2.1.0",
+    "pyarrow>=14.0.0",
+    "websockets>=12.0",
+    "jsonschema>=4.20.0",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=7.0.0",
+    "pytest-asyncio>=0.21.0",
+    "pytest-cov>=4.0.0",
+    "black>=23.0.0",
+    "isort>=5.12.0",
+    "flake8>=6.0.0",
+    "mypy>=1.0.0",
+]
+ui = [
+    "fastapi>=0.104.0",
+    "uvicorn[standard]>=0.24.0",
+    "jinja2>=3.1.0",
+]
+monitoring = [
+    "prometheus-client>=0.18.0",
+    "grafana-api>=1.0.3",
+]
+
+[project.scripts]
+gnosis-track = "gnosis_track.cli.main:main"
+gnosis-track-ui = "gnosis_track.ui.server:main"
+gnosis-track-install = "gnosis_track.deployment.installer:main"
+
+[project.urls]
+Homepage = "https://github.com/data-universe/gnosis-track"
+Documentation = "https://gnosis-track.readthedocs.io/"
+Repository = "https://github.com/data-universe/gnosis-track.git"
+Issues = "https://github.com/data-universe/gnosis-track/issues"
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["gnosis_track*"]
+
+[tool.setuptools.package-data]
+gnosis_track = [
+    "ui/static/*",
+    "ui/templates/*",
+    "config/*.yaml",
+    "deployment/docker/*",
+]
+
+[tool.black]
+line-length = 88
+target-version = ['py38', 'py39', 'py310', 'py311', 'py312']
+include = '\.pyi?$'
+extend-exclude = '''
+/(
+  # directories
+  \.eggs
+  | \.git
+  | \.hg
+  | \.mypy_cache
+  | \.tox
+  | \.venv
+  | build
+  | dist
+)/
+'''
+
+[tool.isort]
+profile = "black"
+multi_line_output = 3
+include_trailing_comma = true
+force_grid_wrap = 0
+use_parentheses = true
+ensure_newline_before_comments = true
+line_length = 88
+
+[tool.mypy]
+python_version = "3.8"
+warn_return_any = true
+warn_unused_configs = true
+disallow_untyped_defs = true
+disallow_incomplete_defs = true
+check_untyped_defs = true
+disallow_untyped_decorators = true
+no_implicit_optional = true
+warn_redundant_casts = true
+warn_unused_ignores = true
+warn_no_return = true
+warn_unreachable = true
+strict_equality = true
+
+[tool.pytest.ini_options]
+minversion = "7.0"
+addopts = "-ra -q --strict-markers --strict-config"
+testpaths = ["tests"]
+python_files = ["test_*.py", "*_test.py"]
+python_classes = ["Test*"]
+python_functions = ["test_*"]
+markers = [
+    "slow: marks tests as slow (deselect with '-m \"not slow\"')",
+    "integration: marks tests as integration tests",
+    "unit: marks tests as unit tests",
+]

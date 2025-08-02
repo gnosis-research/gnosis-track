@@ -1,0 +1,285 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Gnosis Track Validator Logs</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.js"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;700&display=swap');
+        
+        .log-font { font-family: 'JetBrains Mono', monospace; }
+        
+        .log-entry {
+            transition: all 0.2s ease-in-out;
+            border-left: 3px solid transparent;
+        }
+        
+        .log-entry:hover {
+            background-color: rgba(59, 130, 246, 0.05);
+            border-left-color: #3b82f6;
+        }
+        
+        .log-entry.new-entry {
+            animation: slideIn 0.3s ease-out;
+        }
+        
+        @keyframes slideIn {
+            from {
+                opacity: 0;
+                transform: translateX(-10px);
+            }
+            to {
+                opacity: 1;
+                transform: translateX(0);
+            }
+        }
+        
+        .level-ERROR { border-left-color: #ef4444; background-color: rgba(239, 68, 68, 0.1); }
+        .level-WARNING { border-left-color: #f59e0b; background-color: rgba(245, 158, 11, 0.1); }
+        .level-INFO { border-left-color: #10b981; background-color: rgba(16, 185, 129, 0.05); }
+        .level-DEBUG { border-left-color: #6366f1; background-color: rgba(99, 102, 241, 0.05); }
+        .level-TRACE { border-left-color: #8b5cf6; background-color: rgba(139, 92, 246, 0.05); }
+        .level-SUCCESS { border-left-color: #059669; background-color: rgba(5, 150, 105, 0.1); }
+        
+        .scrollbar-hide {
+            -ms-overflow-style: none;
+            scrollbar-width: none;
+        }
+        .scrollbar-hide::-webkit-scrollbar {
+            display: none;
+        }
+        
+        .glass {
+            backdrop-filter: blur(10px);
+            background: rgba(255, 255, 255, 0.1);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+        }
+        
+        .fullscreen-mode {
+            position: fixed !important;
+            top: 0 !important;
+            left: 0 !important;
+            width: 100vw !important;
+            height: 100vh !important;
+            z-index: 9999 !important;
+            background: linear-gradient(135deg, #0f172a 0%, #1e293b 50%, #0f172a 100%) !important;
+            border-radius: 0 !important;
+            margin: 0 !important;
+        }
+        
+        .fullscreen-mode .logs-container-fullscreen {
+            height: calc(100vh - 80px) !important;
+        }
+    </style>
+</head>
+<body class="bg-gradient-to-br from-slate-900 via-blue-900 to-slate-900 min-h-screen text-white">
+    <div class="container mx-auto px-4 py-6">
+        <!-- Header -->
+        <div class="glass rounded-lg p-6 mb-6">
+            <div class="flex items-center justify-between mb-4">
+                <div class="flex items-center space-x-3">
+                    <div class="w-12 h-12 bg-gradient-to-r from-blue-500 to-purple-600 rounded-lg flex items-center justify-center">
+                        <i data-lucide="activity" class="w-6 h-6"></i>
+                    </div>
+                    <div>
+                        <h1 class="text-2xl font-bold">Gnosis Track Validator Logs</h1>
+                        <p class="text-slate-300">Real-time log monitoring and analysis</p>
+                    </div>
+                </div>
+                <div class="flex items-center space-x-2">
+                    <div id="status-indicator" class="w-3 h-3 bg-red-500 rounded-full animate-pulse"></div>
+                    <span id="status-text" class="text-sm text-slate-300">Disconnected</span>
+                </div>
+            </div>
+            
+            <!-- Controls -->
+            <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
+                <div>
+                    <label class="block text-sm font-medium mb-2">Validator UID</label>
+                    <select id="validator-select" class="w-full bg-slate-800 border border-slate-600 rounded-lg px-3 py-2 text-white focus:outline-none focus:ring-2 focus:ring-blue-500">
+                        <option value="">Select Validator</option>
+                    </select>
+                </div>
+                <div>
+                    <label class="block text-sm font-medium mb-2">Run ID</label>
+                    <select id="run-select" class="w-full bg-slate-800 border border-slate-600 rounded-lg px-3 py-2 text-white focus:outline-none focus:ring-2 focus:ring-blue-500">
+                        <option value="">Latest Run</option>
+                    </select>
+                </div>
+                <div>
+                    <label class="block text-sm font-medium mb-2">Log Level</label>
+                    <select id="level-filter" class="w-full bg-slate-800 border border-slate-600 rounded-lg px-3 py-2 text-white focus:outline-none focus:ring-2 focus:ring-blue-500">
+                        <option value="">All Levels</option>
+                        <option value="ERROR">ERROR</option>
+                        <option value="WARNING">WARNING</option>
+                        <option value="INFO">INFO</option>
+                        <option value="DEBUG">DEBUG</option>
+                        <option value="TRACE">TRACE</option>
+                        <option value="SUCCESS">SUCCESS</option>
+                    </select>
+                </div>
+                <div class="flex items-end space-x-2">
+                    <button id="start-streaming" class="bg-green-600 hover:bg-green-700 px-4 py-2 rounded-lg transition-colors flex items-center space-x-2">
+                        <i data-lucide="play" class="w-4 h-4"></i>
+                        <span>Start</span>
+                    </button>
+                    <button id="stop-streaming" class="bg-red-600 hover:bg-red-700 px-4 py-2 rounded-lg transition-colors flex items-center space-x-2" disabled>
+                        <i data-lucide="pause" class="w-4 h-4"></i>
+                        <span>Stop</span>
+                    </button>
+                    <button id="clear-logs" class="bg-slate-600 hover:bg-slate-700 px-4 py-2 rounded-lg transition-colors flex items-center space-x-2">
+                        <i data-lucide="trash-2" class="w-4 h-4"></i>
+                        <span>Clear</span>
+                    </button>
+                </div>
+            </div>
+            
+            <!-- Search -->
+            <div class="mt-4">
+                <div class="relative">
+                    <i data-lucide="search" class="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-slate-400"></i>
+                    <input id="search-input" type="text" placeholder="Search logs..." class="w-full bg-slate-800 border border-slate-600 rounded-lg pl-10 pr-4 py-2 text-white focus:outline-none focus:ring-2 focus:ring-blue-500">
+                </div>
+            </div>
+        </div>
+        
+        <!-- Stats -->
+        <div class="grid grid-cols-2 md:grid-cols-5 gap-4 mb-6">
+            <div class="glass rounded-lg p-4">
+                <div class="flex items-center space-x-2">
+                    <i data-lucide="zap" class="w-5 h-5 text-green-500"></i>
+                    <span class="text-sm text-slate-300">Total Logs</span>
+                </div>
+                <div id="total-logs" class="text-xl font-bold">0</div>
+            </div>
+            <div class="glass rounded-lg p-4">
+                <div class="flex items-center space-x-2">
+                    <i data-lucide="alert-circle" class="w-5 h-5 text-red-500"></i>
+                    <span class="text-sm text-slate-300">Errors</span>
+                </div>
+                <div id="error-count" class="text-xl font-bold text-red-400">0</div>
+            </div>
+            <div class="glass rounded-lg p-4">
+                <div class="flex items-center space-x-2">
+                    <i data-lucide="alert-triangle" class="w-5 h-5 text-yellow-500"></i>
+                    <span class="text-sm text-slate-300">Warnings</span>
+                </div>
+                <div id="warning-count" class="text-xl font-bold text-yellow-400">0</div>
+            </div>
+            <div class="glass rounded-lg p-4">
+                <div class="flex items-center space-x-2">
+                    <i data-lucide="info" class="w-5 h-5 text-blue-500"></i>
+                    <span class="text-sm text-slate-300">Info</span>
+                </div>
+                <div id="info-count" class="text-xl font-bold text-blue-400">0</div>
+            </div>
+            <div class="glass rounded-lg p-4">
+                <div class="flex items-center space-x-2">
+                    <i data-lucide="clock" class="w-5 h-5 text-purple-500"></i>
+                    <span class="text-sm text-slate-300">Last Update</span>
+                </div>
+                <div id="last-update" class="text-sm font-medium">Never</div>
+            </div>
+        </div>
+        
+        <!-- Logs Container -->
+        <div id="logs-main-container" class="glass rounded-lg">
+            <div class="p-4 border-b border-slate-600">
+                <div class="flex items-center justify-between">
+                    <h2 class="text-lg font-semibold">Live Logs</h2>
+                    <div class="flex items-center space-x-4">
+                        <div class="relative">
+                            <button id="download-btn" class="p-2 hover:bg-slate-700 rounded-lg transition-colors group" title="Download Logs">
+                                <i data-lucide="download" class="w-4 h-4 text-slate-400 group-hover:text-white"></i>
+                            </button>
+                            <div id="download-menu" class="absolute right-0 top-full mt-2 bg-slate-800 border border-slate-600 rounded-lg shadow-lg z-50 min-w-48 hidden">
+                                <div class="p-2">
+                                    <div class="text-xs text-slate-400 mb-2 px-2">Export Format</div>
+                                    <button id="download-txt" class="w-full text-left px-3 py-2 hover:bg-slate-700 rounded text-sm flex items-center space-x-2">
+                                        <i data-lucide="file-text" class="w-4 h-4"></i>
+                                        <span>Plain Text (.txt)</span>
+                                    </button>
+                                    <button id="download-json" class="w-full text-left px-3 py-2 hover:bg-slate-700 rounded text-sm flex items-center space-x-2">
+                                        <i data-lucide="braces" class="w-4 h-4"></i>
+                                        <span>JSON (.json)</span>
+                                    </button>
+                                    <button id="download-csv" class="w-full text-left px-3 py-2 hover:bg-slate-700 rounded text-sm flex items-center space-x-2">
+                                        <i data-lucide="table" class="w-4 h-4"></i>
+                                        <span>CSV (.csv)</span>
+                                    </button>
+                                    <hr class="border-slate-600 my-2">
+                                    <div class="text-xs text-slate-400 mb-2 px-2">Options</div>
+                                    <label class="flex items-center space-x-2 px-3 py-2 hover:bg-slate-700 rounded text-sm cursor-pointer">
+                                        <input id="download-filtered" type="checkbox" checked class="text-blue-600">
+                                        <span>Filtered logs only</span>
+                                    </label>
+                                    <label class="flex items-center space-x-2 px-3 py-2 hover:bg-slate-700 rounded text-sm cursor-pointer">
+                                        <input id="download-timestamps" type="checkbox" checked class="text-blue-600">
+                                        <span>Include timestamps</span>
+                                    </label>
+                                </div>
+                            </div>
+                        </div>
+                        <button id="fullscreen-btn" class="p-2 hover:bg-slate-700 rounded-lg transition-colors group" title="Toggle Fullscreen">
+                            <i id="fullscreen-icon" data-lucide="maximize" class="w-4 h-4 text-slate-400 group-hover:text-white"></i>
+                        </button>
+                        <div class="flex items-center space-x-2 text-sm text-slate-300">
+                            <span>Auto-scroll</span>
+                            <label class="relative inline-flex items-center cursor-pointer">
+                                <input id="auto-scroll" type="checkbox" checked class="sr-only peer">
+                                <div class="w-11 h-6 bg-slate-600 rounded-full peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-blue-300 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div>
+                            </label>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div id="logs-container" class="h-96 overflow-y-auto scrollbar-hide bg-slate-900/50 rounded-b-lg">
+                <div id="logs-content" class="p-4 space-y-1">
+                    <div class="text-center text-slate-400 py-8">
+                        <i data-lucide="server" class="w-12 h-12 mx-auto mb-3 opacity-50"></i>
+                        <p>Select a validator and start streaming to view logs</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Configuration Modal -->
+        <div id="config-modal" class="fixed inset-0 bg-black bg-opacity-50 hidden items-center justify-center z-50">
+            <div class="glass rounded-lg p-6 max-w-md w-full mx-4">
+                <h3 class="text-lg font-semibold mb-4">MinIO Configuration</h3>
+                <div class="space-y-4">
+                    <div>
+                        <label class="block text-sm font-medium mb-2">MinIO Endpoint</label>
+                        <input id="minio-endpoint" type="text" value="146.190.168.187:9000" class="w-full bg-slate-800 border border-slate-600 rounded-lg px-3 py-2 text-white">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium mb-2">Access Key</label>
+                        <input id="minio-access-key" type="text" value="miner_test_hot" class="w-full bg-slate-800 border border-slate-600 rounded-lg px-3 py-2 text-white">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium mb-2">Secret Key</label>
+                        <input id="minio-secret-key" type="password" value="key_key_offline_secret2" class="w-full bg-slate-800 border border-slate-600 rounded-lg px-3 py-2 text-white">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium mb-2">Bucket Name</label>
+                        <input id="minio-bucket" type="text" value="validator-logs" class="w-full bg-slate-800 border border-slate-600 rounded-lg px-3 py-2 text-white">
+                    </div>
+                </div>
+                <div class="flex justify-end space-x-2 mt-6">
+                    <button id="cancel-config" class="px-4 py-2 bg-slate-600 rounded-lg hover:bg-slate-700">Cancel</button>
+                    <button id="save-config" class="px-4 py-2 bg-blue-600 rounded-lg hover:bg-blue-700">Save</button>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Settings Button -->
+        <button id="settings-btn" class="fixed bottom-6 right-6 w-12 h-12 bg-slate-700 hover:bg-slate-600 rounded-full flex items-center justify-center transition-colors">
+            <i data-lucide="settings" class="w-5 h-5"></i>
+        </button>
+    </div>
+
+    <script src="app.js"></script>
+</body>
+</html>

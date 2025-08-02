@@ -1,0 +1,71 @@
+# Development Configuration for Gnosis-Track
+# Optimized for local development and testing
+
+seaweedfs:
+  # Local SeaweedFS instance
+  s3_endpoint: "localhost:8333"
+  access_key: "admin"
+  secret_key: "admin_secret_key"
+  use_ssl: false
+  verify_ssl: false
+  auto_start_local: true
+  timeout: 30
+  max_retries: 3
+
+security:
+  # Basic security for development
+  encryption_enabled: true
+  encryption_algorithm: "AES256-GCM"
+  jwt_secret: "dev-jwt-secret-change-in-production"
+  jwt_expiry: "24h"
+  tls_enabled: false
+  # No TLS certificates needed for development
+
+logging:
+  # Development logging settings
+  bucket_name: "dev-validator-logs"
+  project_name: "development-validators"
+  compression_enabled: true
+  structured_logging: true
+  log_level: "DEBUG"  # Verbose logging for development
+  retention_days: 30  # Shorter retention for dev
+  export_formats: ["json", "csv"]
+
+ui:
+  # Development UI settings
+  host: "localhost"
+  port: 8080
+  debug: true  # Enable debug mode
+  auth_required: false  # No auth for local dev
+  auto_refresh_interval: 1000  # Fast refresh for development
+
+monitoring:
+  # Development monitoring
+  enabled: true
+  metrics_endpoint: "/metrics"
+  health_endpoint: "/health"
+  collection_interval: 30  # Frequent collection for testing
+
+cloud_backup:
+  # Disabled for development
+  enabled: false
+  # provider: "aws"  # Uncomment to test cloud backup
+  # bucket: "dev-backup-bucket"
+  schedule: "0 */6 * * *"  # Every 6 hours if enabled
+  retention_days: 30
+
+# Development-specific settings
+development:
+  # Auto-cleanup old data
+  auto_cleanup: true
+  cleanup_interval_hours: 6
+  
+  # Mock data generation
+  generate_mock_data: true
+  mock_validator_count: 3
+  mock_data_interval_seconds: 10
+  
+  # Development helpers
+  reset_on_restart: true
+  verbose_errors: true
+  enable_profiling: true
