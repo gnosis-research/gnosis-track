@@ -34,8 +34,12 @@ Thumbs.db
 logs/
 data/
 local_test_data/
+debug_runs/
+temp_*.yaml
+temp_*.json
 *.db
 *.sqlite
+filerldb*/
 
 # Testing
 .pytest_cache/

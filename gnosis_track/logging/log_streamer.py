@@ -71,15 +71,19 @@ class LogStreamer:
         """
         try:
             prefix = f"validator_{validator_uid}/"
-            objects = self.client.list_objects(self.bucket_name, prefix=prefix)
+            # Use list_prefixes to get run directories directly
+            run_prefixes = self.client.list_prefixes(self.bucket_name, prefix=prefix)
             
-            runs = set()
-            for obj in objects:
-                key_parts = obj['Key'].split('/')
-                if len(key_parts) >= 2 and not key_parts[1].startswith('.'):
-                    runs.add(key_parts[1])
+            runs = []
+            for run_prefix in run_prefixes:
+                # Extract run ID from prefix like "validator_200/2025-08-02_04-15-38/"
+                parts = run_prefix.rstrip('/').split('/')
+                if len(parts) >= 2:
+                    run_id = parts[1]
+                    if not run_id.startswith('.'):
+                        runs.append(run_id)
             
-            return sorted(list(runs), reverse=True)  # Most recent first
+            return sorted(runs, reverse=True)  # Most recent first
             
         except Exception as e:
             print(f"Failed to get runs for validator {validator_uid}: {e}")
@@ -382,3 +386,29 @@ class LogStreamer:
             lines.append(f"{formatted_time} | {level:>8} | {message}")
         
         return '\n'.join(lines)
+    
+    def get_run_config(self, validator_uid: int, run_id: str) -> Optional[Dict[str, Any]]:
+        """
+        Get configuration data for a specific validator run.
+        
+        Args:
+            validator_uid: Validator UID
+            run_id: Run ID
+            
+        Returns:
+            Config data dictionary or None if not found
+        """
+        try:
+            config_key = f"validator_{validator_uid}/{run_id}/config.json"
+            
+            # Check if config exists
+            if not self.client.object_exists(self.bucket_name, config_key):
+                return None
+            
+            # Get config data
+            config_data = self.client.get_object(self.bucket_name, config_key)
+            return json.loads(config_data.decode('utf-8'))
+            
+        except Exception as e:
+            print(f"Failed to get run config for validator {validator_uid}, run {run_id}: {e}")
+            return None

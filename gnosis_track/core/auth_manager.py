@@ -140,8 +140,15 @@ class AuthManager:
             "exp": time.time() + (self.token_expiry_hours * 3600)
         }
         
-        token = jwt.encode(payload, self.jwt_secret, algorithm=self.algorithm)
-        return token
+        try:
+            token = jwt.encode(payload, self.jwt_secret, algorithm=self.algorithm)
+            # Handle both string and bytes return types from different PyJWT versions
+            if isinstance(token, bytes):
+                token = token.decode('utf-8')
+            return token
+        except Exception as e:
+            print(f"JWT encoding error: {e}")
+            return None
     
     def verify_token(self, token: str) -> Optional[Dict[str, Any]]:
         """

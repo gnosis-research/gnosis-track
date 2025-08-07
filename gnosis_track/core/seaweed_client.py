@@ -275,6 +275,38 @@ class SeaweedClient:
             logger.error(f"Failed to list objects in {bucket_name}: {e}")
             raise
     
+    def list_prefixes(
+        self,
+        bucket_name: str,
+        prefix: str = "",
+        delimiter: str = "/"
+    ) -> List[str]:
+        """
+        List common prefixes (directories) in a bucket.
+        
+        Args:
+            bucket_name: Name of the bucket
+            prefix: Prefix to filter by
+            delimiter: Delimiter to use for grouping (usually '/')
+            
+        Returns:
+            List of common prefixes (directory paths)
+        """
+        try:
+            kwargs = {
+                'Bucket': bucket_name,
+                'Delimiter': delimiter,
+            }
+            if prefix:
+                kwargs['Prefix'] = prefix
+            
+            response = self.s3_client.list_objects_v2(**kwargs)
+            common_prefixes = response.get('CommonPrefixes', [])
+            return [cp['Prefix'] for cp in common_prefixes]
+        except ClientError as e:
+            logger.error(f"Failed to list prefixes in {bucket_name}: {e}")
+            raise
+    
     def object_exists(self, bucket_name: str, object_key: str) -> bool:
         """Check if an object exists."""
         try:

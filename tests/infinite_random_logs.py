@@ -10,6 +10,7 @@ import time
 import random
 import json
 import threading
+import os
 
 class MockWallet:
     class MockHotkey:
@@ -17,13 +18,15 @@ class MockWallet:
     hotkey = MockHotkey()
 
 class InfiniteLogGenerator:
-    def __init__(self, validator_uid=200):
+    def __init__(self, validator_uid=200, api_key=None, server_url=None):
         self.validator_uid = validator_uid
         self.wallet = MockWallet()
         self.logger = None
         self.running = False
         self.iteration = 0
         self.start_time = time.time()
+        self.api_key = api_key
+        self.server_url = server_url or "http://localhost:8081"
         
         # Random data generators
         self.log_levels = ['DEBUG', 'INFO', 'WARNING', 'ERROR', 'SUCCESS']
@@ -91,9 +94,22 @@ class InfiniteLogGenerator:
         """Start the infinite log generation."""
         print(f"🚀 Starting infinite log generator for Validator {self.validator_uid}")
         print(f"📍 Press Ctrl+C to stop")
-        print(f"🌐 Monitor at: http://localhost:8081")
+        print(f"🌐 Monitor at: {self.server_url}")
         print(f"🔍 Select Validator {self.validator_uid} in the UI")
         print()
+        
+        # Check if authentication is required
+        if self._is_auth_required():
+            if not self.api_key:
+                print("❌ Authentication is required but no API key provided")
+                print("   Set GNOSIS_API_KEY environment variable or pass --api-key")
+                print("   Generate a token with: gnosis-track token create --project test-project")
+                return
+            
+            if not self._verify_api_key():
+                print("❌ Invalid or expired API key")
+                print("   Generate a new token with: gnosis-track token create --project test-project")
+                return
         
         try:
             self.logger = ValidatorLogger(
@@ -290,6 +306,52 @@ class InfiniteLogGenerator:
         
         return base_metrics
     
+    def _is_auth_required(self) -> bool:
+        """Check if the server has authentication enabled."""
+        try:
+            import urllib.request
+            import urllib.error
+            
+            # Try accessing the health endpoint without auth
+            req = urllib.request.Request(f"{self.server_url}/health")
+            response = urllib.request.urlopen(req, timeout=5)
+            
+            # If health endpoint is accessible, check if auth is required
+            # by trying to access a protected endpoint
+            req = urllib.request.Request(f"{self.server_url}/api/validators")
+            try:
+                urllib.request.urlopen(req, timeout=5)
+                return False  # No auth required
+            except urllib.error.HTTPError as e:
+                if e.code == 401:
+                    return True  # Auth required
+                return False  # Other error, assume no auth
+                
+        except Exception:
+            # If we can't connect, assume no auth required for local testing
+            return False
+    
+    def _verify_api_key(self) -> bool:
+        """Verify the API key with the server."""
+        try:
+            import urllib.request
+            import urllib.error
+            import json
+            
+            # Test the API key by getting S3 credentials
+            data = json.dumps({"api_key": self.api_key}).encode('utf-8')
+            req = urllib.request.Request(
+                f"{self.server_url}/api/auth/s3-credentials",
+                data=data,
+                headers={'Content-Type': 'application/json'}
+            )
+            
+            response = urllib.request.urlopen(req, timeout=5)
+            return response.status == 200
+            
+        except Exception:
+            return False
+    
     def _get_random_delay(self):
         """Get random delay between log entries to simulate realistic patterns."""
         
@@ -306,6 +368,14 @@ class InfiniteLogGenerator:
 
 def main():
     """Main entry point."""
+    import argparse
+    
+    parser = argparse.ArgumentParser(description='Gnosis-Track Infinite Random Log Generator')
+    parser.add_argument('--validator-uid', type=int, default=200, help='Validator UID (default: 200)')
+    parser.add_argument('--api-key', help='API key for authentication (or set GNOSIS_API_KEY env var)')
+    parser.add_argument('--server-url', default='http://localhost:8081', help='Server URL (default: http://localhost:8081)')
+    
+    args = parser.parse_args()
     
     print("🎯 Gnosis-Track Infinite Random Log Generator")
     print("=" * 45)
@@ -313,16 +383,35 @@ def main():
     print("for real-time UI testing and performance validation.")
     print()
     
-    # Allow customization of validator UID
-    try:
-        validator_uid = int(input("Enter Validator UID (default: 200): ") or "200")
-    except ValueError:
-        validator_uid = 200
+    # Get API key from argument or environment
+    api_key = args.api_key or os.environ.get('GNOSIS_API_KEY')
+    
+    # If running interactively and no command line args provided
+    if not any(vars(args).values()) and not api_key:
+        try:
+            validator_uid = int(input("Enter Validator UID (default: 200): ") or "200")
+        except ValueError:
+            validator_uid = 200
+        
+        # Check if user wants to provide API key
+        if input("Enter API key (press Enter to skip): ").strip():
+            api_key = input("API key: ").strip()
+    else:
+        validator_uid = args.validator_uid
     
     print(f"🔄 Will generate logs for Validator {validator_uid}")
+    print(f"🌐 Server: {args.server_url}")
+    if api_key:
+        print(f"🔑 API Key: {api_key[:12]}...")
+    else:
+        print("🔓 No API key provided - will check if auth is required")
     print()
     
-    generator = InfiniteLogGenerator(validator_uid)
+    generator = InfiniteLogGenerator(
+        validator_uid=validator_uid,
+        api_key=api_key,
+        server_url=args.server_url
+    )
     generator.start()
 
 if __name__ == "__main__":

@@ -219,6 +219,100 @@ def ui(ctx, host: Optional[str], port: Optional[int], auth_required: bool, debug
         sys.exit(1)
 
 
+@cli.group()
+@click.pass_context
+def token(ctx):
+    """Manage API tokens."""
+    pass
+
+
+@token.command()
+@click.option('--project', required=True, help='Project name')
+@click.option('--permissions', default='read,write', help='Comma-separated permissions')
+@click.option('--expires-days', type=int, default=365, help='Token expiry in days')
+@click.pass_context
+def create(ctx, project: str, permissions: str, expires_days: int):
+    """Create a new API token."""
+    try:
+        from gnosis_track.core.token_manager import TokenManager
+        
+        token_manager = TokenManager()
+        perms = [p.strip() for p in permissions.split(',')]
+        
+        token_id = token_manager.create_token(
+            name=f"Token for {project}",
+            permissions=perms,
+            projects=[project] if project != "all" else [],
+            expires_days=expires_days
+        )
+        
+        click.echo("✅ API Token Created:")
+        click.echo(f"Token: {click.style(token_id, fg='green', bold=True)}")
+        click.echo(f"Project: {project}")
+        click.echo(f"Permissions: {', '.join(perms)}")
+        click.echo(f"Expires: {expires_days} days")
+        click.echo()
+        click.echo("Use this token in your validator:")
+        click.echo(f"  export GNOSIS_API_KEY=\"{token_id}\"")
+        
+    except Exception as e:
+        click.echo(click.style(f"❌ Failed to create token: {e}", fg='red'))
+
+
+@token.command()
+@click.argument('token_id')
+@click.pass_context
+def verify(ctx, token_id: str):
+    """Verify an API token."""
+    try:
+        from gnosis_track.core.token_manager import TokenManager
+        
+        token_manager = TokenManager()
+        api_token = token_manager.verify_token(token_id)
+        
+        if api_token:
+            projects = ', '.join(api_token.projects) if api_token.projects else 'all projects'
+            click.echo(f"✅ Valid token: {click.style(api_token.name, fg='green')}")
+            click.echo(f"  Projects: {projects}")
+            click.echo(f"  Permissions: {', '.join(api_token.permissions)}")
+        else:
+            click.echo(click.style("❌ Invalid or expired token", fg='red'))
+            
+    except Exception as e:
+        click.echo(click.style(f"❌ Token verification failed: {e}", fg='red'))
+
+
+@token.command()
+@click.pass_context
+def list_tokens(ctx):
+    """List all tokens."""
+    try:
+        from gnosis_track.core.token_manager import TokenManager
+        
+        token_manager = TokenManager()
+        tokens = token_manager.list_tokens()
+        
+        if not tokens:
+            click.echo("No tokens found")
+            return
+            
+        click.echo("📋 Active Tokens:")
+        for token_info in tokens:
+            # Check if token is expired
+            is_active = True
+            if token_info.get('expires_at'):
+                from datetime import datetime
+                expires_at = datetime.fromisoformat(token_info['expires_at'])
+                is_active = datetime.now() < expires_at
+            
+            status = "✅ Active" if is_active else "❌ Expired"
+            projects = ', '.join(token_info['projects']) if token_info['projects'] else 'all projects'
+            click.echo(f"  {token_info['token_id'][:16]}... - {token_info['name']} ({projects}) ({status})")
+            
+    except Exception as e:
+        click.echo(click.style(f"❌ Failed to list tokens: {e}", fg='red'))
+
+
 @cli.command()
 @click.pass_context
 def metrics(ctx):
@@ -281,6 +375,7 @@ def metrics(ctx):
 cli.add_command(install_group, name='install')
 cli.add_command(manage_group, name='bucket')
 cli.add_command(logs_group, name='logs')
+cli.add_command(token, name='token')
 
 
 def main():
